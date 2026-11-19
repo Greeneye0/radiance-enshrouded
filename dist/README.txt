@@ -54,3 +54,4 @@ No light at all? Check that dbgcore.dll sits next to enshrouded.exe, that Enable
 radiance.ini, and press F8 once.
 
 Made by GreeneyeDS with the help of AI. MIT license (see LICENSE).
+Source: https://github.com/Greeneye0/radiance-enshrouded
