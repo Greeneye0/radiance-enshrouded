@@ -14,3 +14,6 @@ dist/*.zip
 
 # raw captures (2560x1600 screenshots); the listing images are dist/nexus/images/*.jpg
 assets/raw/
+
+# the banner art the header and card are cut from (kept locally)
+assets/banner.*
