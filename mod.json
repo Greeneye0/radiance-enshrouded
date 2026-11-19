@@ -1,0 +1,10 @@
+{
+    "id": "radiance",
+    "name": "Radiance - Player Light Source",
+    "version": "1.0.0",
+    "dll": "radiance.dll",
+    "side": "client",
+    "api": 2,
+    "description": "Your character gives off light, like a Wax Torch you never have to hold. F8 turns it on or off, Shift+F8 opens the menu.",
+    "author": "GreeneyeDS"
+}
