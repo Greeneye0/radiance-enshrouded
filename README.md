@@ -8,7 +8,7 @@ Nights in Embervale are dark, and caves are darker. Radiance makes your characte
 - Players who both have Radiance see each other's lights, on any server (`src/sync.h`). Tested by one player only so far.
 - The menu comes in all 15 languages the game supports, following the game's language setting. The texts are in `src/strings.h`.
 
-Download and install instructions: see the Nexus Mods page (not published yet). The player-facing readme is [dist/README.txt](dist/README.txt).
+Download and install instructions: see the [Nexus Mods page](https://www.nexusmods.com/enshrouded/mods/384). The player-facing readme is [dist/README.txt](dist/README.txt).
 
 ## Settings
 
