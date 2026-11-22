@@ -118,13 +118,14 @@ def colours():
 
 
 def menu():
-    im = load("08-menu", (60, 290, 1990, 1400))
+    im = load("08-menu", (60, 302, 1990, 1400))
     wordmark(im, x=im.width - 400, y=im.height - 160)
-    # (targets in this crop's pixels: the panel's right edge is at x 833, its rows at y 131, 197, 264, 331)
-    callout(im, 940, 40, "Shift + F8 opens the menu", "F8 turns the light on or off; both can be rebound", size=38)
-    callout(im, 940, 185, "Brightness and Range", "up to three times a torch, up to 300 m", target=(846, 230), size=36)
-    callout(im, 940, 310, "Nine colours", "more with Color= in radiance.ini", target=(786, 331), size=36)
-    callout(im, 940, 450, "Use the mouse", "the camera stays still; Esc or Close when done", size=36)
+    # (1.1.0 shot, 2026-11-22; targets in this crop's pixels: the panel's right edge is at x 972, its rows at
+    # y 146, 229, 311, 394)
+    callout(im, 1060, 40, "Shift + F8 opens the menu", "F8 turns the light on or off; both can be rebound", size=38)
+    callout(im, 1060, 200, "Brightness and Range", "up to three times a torch, up to 300 m", target=(945, 270), size=36)
+    callout(im, 1060, 340, "Nine colors", "more with Color= in radiance.ini", target=(935, 394), size=36)
+    callout(im, 1060, 480, "Use the mouse", "the camera stays still; Esc or Close when done", size=36)
     callout(im, 80, 820, "In your game's language", "all 15 languages Enshrouded supports", size=36)
     frame(im)
     save(im, "03-menu.jpg")
