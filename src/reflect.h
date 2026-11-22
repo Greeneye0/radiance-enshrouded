@@ -108,6 +108,13 @@ inline int64_t EnumValue(const char* fullName, const char* member) {
     return -1;
 }
 
+// A struct's size (its descriptor's +0x40), or -1.
+inline int64_t Size(const char* fullName) {
+    const Image image = Exe();
+    const uint8_t* type = Type(image, fullName);
+    return type ? static_cast<int64_t>(Read<uint32_t>(type, 0x40)) : -1;
+}
+
 inline int64_t Offset(const char* root, const char* container, const char* field) {
     const Image image = Exe();
     const uint8_t* type = Type(image, root);

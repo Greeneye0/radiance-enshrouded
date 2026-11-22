@@ -2,9 +2,9 @@
 
 Nights in Embervale are dark, and caves are darker. Radiance makes your character give off light, so you can see without holding a torch.
 
-- The default is the light of a held Wax Torch: the same colour, brightness and reach.
+- The default is the light of a held Wax Torch: the same color, brightness and reach.
 - No item, no crafting, no slot. Client side only: nothing goes on the server and nothing changes in your save.
-- **F8** turns the light on or off. **Shift+F8** opens a small menu drawn with the game's own interface: a switch, Brightness (up to three times a torch), Range (up to 300 m) and nine colours. It is used with the mouse (the camera stays still while it is open); Esc or Close when done. A controller opens it with LB + D-pad Left and moves through it with the D-pad.
+- **F8** turns the light on or off. **Shift+F8** opens a small menu drawn with the game's own interface: a switch, Brightness (up to three times a torch), Range (up to 300 m) and nine colors. It is used with the mouse (the camera stays still while it is open); Esc or Close when done. A controller opens it with LB + D-pad Left and moves through it with the D-pad.
 - Players who both have Radiance see each other's lights, on any server (`src/sync.h`). Tested by one player only so far.
 - The menu comes in all 15 languages the game supports, following the game's language setting. The texts are in `src/strings.h`.
 
@@ -12,7 +12,7 @@ Download and install instructions: see the [Nexus Mods page](https://www.nexusmo
 
 ## Settings
 
-`greeneye\radiance\radiance.ini`, each setting documented in the file. It is read again within a second of being saved, and the menu writes what the player changes into it. Colour as RGB, flicker, height, shadows, the multiplayer switches and every key are set there.
+`greeneye\radiance\radiance.ini`, each setting documented in the file. It is read again within a second of being saved, and the menu writes what the player changes into it. Color as RGB, flicker, height, shadows, the multiplayer switches and every key are set there.
 
 ## Building
 
@@ -32,7 +32,7 @@ How it fits together:
 
 - `main.cpp`: the light. One of the game's own light-only effects, started in the renderer's effect manager at the local player and moved each frame at the frame's staging call; its `light_*` parameters come from the settings. The player's position is the RenderTransform of the row the ECS system `player_camera_transform` marks as local. Also the settings file and its watcher thread.
 - `menu.h`: the hotkeys and the panel, drawn in the in-game UI pass. While it is open a window procedure in front of the game's takes the raw mouse (so the camera gets none), the mouse buttons and Esc.
-- `sync.h`: other players' lights, over hidden chat lines (entry type 255, `common/hidden_chat.h`) that every server relays and the chat window never shows.
+- `sync.h`: other players' lights, over hidden chat lines (entry type 255, `common/hidden_chat.h`) that every server relays; players without Radiance see them as empty chat messages, so the mod sends one hello per world and more only once another Radiance player has answered.
 - `reflect.h`: field offsets and enum values by name from the game's reflection tables.
 - `strings.h`: the menu's words in 15 languages.
 

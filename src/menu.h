@@ -72,7 +72,7 @@ uint8_t* UiClient() {
 // The HUD screen shown (keen::HudScreenType), -1 when unreadable. The byte's place in the UI client is the one Auto
 // Loot and Quick Deposit read. It only decides when the panel may open and when it closes by itself; a value that
 // makes no sense (a build that moved the byte) is taken as "playing".
-constexpr size_t kUiScreen = 0x1cd8;
+size_t kUiScreen = 0x1cd8; // read from the game's code in Init (the pair Find reads)
 int Screen() {
     uint8_t* client = UiClient();
     uint8_t screen = 0;
@@ -473,17 +473,33 @@ void DrawPanel(uint8_t* bundle, Settings& s, const Pointer& pointer, bool& close
     }
 }
 
+#include "native_panel.h"
+
+// The layer and the parent widget close in their destructors, so a fault while drawing (caught by SafeDraw) never
+// leaves them open: an open layer stops the game a few frames later.
+struct Layer {
+    alignas(16) uint8_t frame[0x400]{};
+    explicit Layer(const Text* name) { beginLayer(frame, name, 1, 0x16, -1, 0); }
+    ~Layer() { endLayer(frame); }
+};
+struct Parent {
+    Widget widget;
+    explicit Parent(const Text* name) {
+        named(widget.raw, name);
+        opaque(widget.raw);
+    }
+    ~Parent() { end(widget.raw); }
+};
+
 void Draw(Settings& s, bool& close) {
     auto* bundle = Field<uint8_t*>(*root, kBundle);
     if (!bundle) return;
     RefreshWords(bundle);
     static const Text name = MakeText("radianceMenu");
-    alignas(16) uint8_t frame[0x400]{};
-    beginLayer(frame, &name, 1, 0x16, -1, 0);
+    Layer layer(&name);
     {
-        Widget parent;
-        named(parent.raw, &name);
-        opaque(parent.raw);
+        Parent top(&name);
+        Widget& parent = top.widget;
         if (parent.handle()) {
             const auto* screen = static_cast<const float*>(static_cast<void*>(static_cast<uint8_t*>(parent.handle()) + 0x114));
             // the panel's own cursor: the raw mouse moves it (one count = one pixel of the game's window)
@@ -504,14 +520,13 @@ void Draw(Settings& s, bool& close) {
             pointer.pressed = pointer.down && !mouseWas;
             mouseWas = pointer.down;
             if (pointer.pressed) padShown = false;
-            DrawPanel(bundle, s, pointer, close);
+            if (native::ready) native::DrawPanel(bundle, s, pointer, close);
+            else DrawPanel(bundle, s, pointer, close);
             // the cursor, on top: a white arrow head with a dark edge
             for (int i = 0; i < 9; ++i) Rect(cursorX - 1, cursorY + i * 2.0f - 1, 4 + i * 1.6f + 2, 3, 0xff000000u);
             for (int i = 0; i < 9; ++i) Rect(cursorX, cursorY + i * 2.0f, 4 + i * 1.6f, 2, kWhite);
         }
-        end(parent.raw);
     }
-    endLayer(frame);
 }
 
 bool SafeDraw(Settings& s, bool& close) {
@@ -680,12 +695,13 @@ void** FindRoot(const std::vector<uint8_t>& code, uint8_t* textStart) {
 }
 
 // The hotkeys always; the panel when everything it draws with is found.
-bool Init(const GreeneyeHost* host, const std::vector<uint8_t>& code, uint8_t* textStart) {
+bool Init(const GreeneyeHost* host, const std::vector<uint8_t>& image, uint8_t* textStart) {
     uint8_t* play = host->find("4C 8B DC 55 49 8D AB E8 FD FF FF 48 81 EC 10 03 00 00", nullptr); // doPlayStateUi
     if (!play) {
         Log("the in-game UI pass was not found in this game build; no hotkeys and no menu (the ini still works)");
         return false;
     }
+    kUiScreen = code::FromCode("UiScreen", "80 BB ?? ?? ?? ?? 30 74 ?? 45 32 F6", 2, "80 BF ?? ?? ?? ?? 01 75 ?? 4D 85 C0", 2, 0x1cd8);
     bool ok = true;
     ok &= Bind(host, begin, "40 53 48 83 EC 20 48 8B 05 ?? ?? ?? ?? 48 8B D9 45 33 C0");
     ok &= Bind(host, end, "48 89 5C 24 18 48 89 74 24 20 57 48 83 EC 60 80 79 20 00");
@@ -697,7 +713,7 @@ bool Init(const GreeneyeHost* host, const std::vector<uint8_t>& code, uint8_t* t
     ok &= Bind(host, beginLabel, "48 89 5C 24 08 48 89 74 24 10 48 89 7C 24 18 41 56 48 83 EC 50 48 8B DA 41 0F B6 F9");
     ok &= Bind(host, endLabel, "40 55 56 57 48 8D 6C 24 B9 48 81 EC F0 00 00 00 0F 29 BC 24 B0 00 00 00");
     ok &= Bind(host, drawImage, "4D 8B 09 45 8B 00 E9 ?? ?? ?? ?? CC");
-    root = FindRoot(code, textStart);
+    root = FindRoot(image, textStart);
     styleAt = reflect::Offset("keen::FbUiBundle", "keen::FbUiCharacterStyles", "defaultStyle");
     screenPlaying = static_cast<int>(reflect::EnumValue("keen::HudScreenType", "InGame"));
     ok = ok && root && styleAt > 0;
@@ -719,6 +735,7 @@ bool Init(const GreeneyeHost* host, const std::vector<uint8_t>& code, uint8_t* t
     }
     for (int id = 0; id < text::IdCount; ++id) words[id] = text::Get(text::Lang::en, text::Id(id));
     LoadKeys();
+    if (ok) native::Init(host); // optional: without it the panel draws itself
     ready = ok;
     if (!ok)
         Log("the menu's parts were not all found in this game build (root %p, style %lld); the on/off key still works", root, styleAt);

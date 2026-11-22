@@ -49,7 +49,15 @@ inline constexpr size_t kServerReceiveLen = 13;
 
 // Game client layout (Town Portal / Embervale Teleport, build 1273043).
 inline constexpr size_t kUiClient = 0x1f0;          // the UI client sits here in the game client
-inline constexpr size_t kClientStore = 0xf8;        // the client's own chat store
+inline constexpr size_t kClientStore = 0xf8;        // the client's own chat store (Radiance reads it from the code)
+// Radiance: the one place the chat command appends to the client's own store (mov rdx, [rdi + store] / ... / call),
+// rdi the game client. It must sit just after the command's chat-permission check (kChatAllowed, same rdi; 0x42 bytes
+// on every build 10-20 to 11-04), or the known offset stays.
+inline constexpr const char* kStoreSite = "48 8B 97 ?? ?? ?? ?? 89 4C 24 20 48 8D 8D ?? ?? ?? ?? E8 ?? ?? ?? ??";
+inline size_t g_clientStore = kClientStore;
+inline bool g_clientStoreRead = false;
+inline uint8_t* g_storeSite = nullptr; // where kStoreSite and kChatAllowed were found (for the log)
+inline uint8_t* g_storeCheck = nullptr;
 inline constexpr size_t kClientHandle = 0x466b44;   // the local player's handle
 // Server player slots: 16 of 0x148 bytes at +0x1e0, +0 used, +0x18 entity, +0x48 account.
 inline constexpr size_t kSlots = 0x1e0, kSlotSize = 0x148, kSlotCount = 16, kSlotEntity = 0x18, kSlotAccount = 0x48;
@@ -172,6 +180,14 @@ inline bool InstallAppend(const GreeneyeHost* host, Handler handler, std::string
         why = "the game's chat append was not found";
         return false;
     }
+    g_storeSite = host->find(kStoreSite, nullptr);
+    g_storeCheck = host->find(kChatAllowed, nullptr);
+    if (g_storeSite && g_storeCheck && g_storeSite > g_storeCheck && g_storeSite - g_storeCheck < 0x100) {
+        int32_t disp = 0;
+        host->read(g_storeSite + 3, &disp, 4);
+        if (disp > 0 && disp < 0x10000)
+            g_clientStore = size_t(disp), g_clientStoreRead = true;
+    }
     g_handler = handler;
     g_nextAppend = reinterpret_cast<AppendFn>(host->hook(append, reinterpret_cast<void*>(&AppendHook), kAppendLen, nullptr, 0));
     if (!g_nextAppend) {
@@ -247,7 +263,7 @@ inline bool IsClientStore(void* gameClient, void* store)
     if (!gameClient || !store)
         return false;
     __try {
-        return detail::At<void*>(gameClient, kClientStore) == store;
+        return detail::At<void*>(gameClient, g_clientStore) == store;
     } __except (EXCEPTION_EXECUTE_HANDLER) {
         return false;
     }

@@ -1,0 +1,4 @@
+The menu looks like the game's own dialogs: the framed window Find's search uses, the game's stone Close button, and slider rows laid out like the game's Settings screen.
+Far fewer hidden chat lines: players without Radiance saw an empty chat message every 10 seconds. Now one is sent when you join a world, and nothing more unless another Radiance player is there.
+Safer on game updates: more of what the mod uses is read from the game at start; if a menu piece changes in an update, the menu draws its own instead.
+Reported bug fixed: empty chat messages for players without the mod (Neocybermario).

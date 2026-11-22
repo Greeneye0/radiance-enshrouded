@@ -15,10 +15,10 @@
 
 Nights in Embervale are dark, and caves are darker. A torch fixes that, but it takes a hand you want for a shield, a bow or a pickaxe. Radiance makes your character give off light, so both hands stay free.
 [list]
-[*][b]A Wax Torch's light, hands free.[/b] The default matches a Wax Torch you hold: the same warm colour, brightness and reach.
+[*][b]A Wax Torch's light, hands free.[/b] The default matches a Wax Torch you hold: the same warm color, brightness and reach.
 [*][b]No item, no crafting, no slot.[/b] Nothing goes in your backpack, and nothing is added to the game's items.
 [*][b]F8 turns the light on or off.[/b]
-[*][b]Shift+F8 opens a small menu[/b], drawn with the game's own interface: a switch, Brightness, Range and nine colours. Use it with the mouse; the camera stays still while it is open. Esc or Close when you are done.
+[*][b]Shift+F8 opens a small menu[/b], drawn with the game's own interface: a switch, Brightness, Range and nine colors. Use it with the mouse; the camera stays still while it is open. Esc or Close when you are done.
 [*][b]Brightness up to three times a torch, range up to 300 m.[/b] Light a whole cave, or keep a small glow around your feet.
 [*][b]Works on any server, with nothing installed on it.[/b] The light is on your own game.
 [*][b]Other players with Radiance see your light, and you see theirs[/b] (see Multiplayer below).
@@ -52,10 +52,10 @@ Nights in Embervale are dark, and caves are darker. A torch fixes that, but it t
 [size=4][b]Multiplayer[/b][/size]
 
 [list]
-[*][b]Players without Radiance[/b] see nothing different. Your light is drawn by your game only.
-[*][b]Players with Radiance[/b] see each other's lights, in each player's own colour, brightness and range. The mods tell each other through the game's chat channel in a way that is never shown in the chat window, so the server needs nothing and nobody is spammed.
+[*][b]Players with Radiance[/b] see each other's lights, in each player's own color, brightness and range. The mods find each other through the game's chat channel, so the server needs nothing.
+[*][b]Players without Radiance[/b] see one empty chat message when you join a world (the hello the mods find each other with); nothing more is sent unless another Radiance player is there. Your light is drawn by your game only.
 [*][b]Your choice:[/b] [i]ShareMyLight[/i] and [i]ShowOtherLights[/i] in the settings file turn each direction off.
-[*]A light shows on a player once they are in view; it can take up to ten seconds after they walk into range.
+[*]A light shows on a player once they are in view.
 [/list]
 
 Seeing each other's lights is new and has only been tested by one player so far. If it works for your group, or doesn't, please say so in the comments.
@@ -67,7 +67,7 @@ Seeing each other's lights is new and has only been tested by one player so far.
 The menu covers the everyday choices. Everything else is in [i]greeneye\radiance\radiance.ini[/i], each setting explained in the file. Changes apply within a second of saving it; no restart needed. What you change in the menu is written to the same file.
 [list]
 [*][b]Enabled[/b], [b]Intensity[/b], [b]Radius[/b]: the menu's switch, Brightness and Range. Intensity 1 and Radius 45 are a Wax Torch.
-[*][b]Color[/b] = 255, 137, 88: any colour, as red, green, blue from 0 to 255 or a web colour such as [i]#FF8958[/i]. The menu offers nine.
+[*][b]Color[/b] = 255, 137, 88: any color, as red, green, blue from 0 to 255 or a web color such as [i]#FF8958[/i]. The menu offers nine.
 [*][b]Flicker[/b] = 1.0: how fast the light flickers. 0 is a steady light.
 [*][b]Height[/b] = 1.3: where the light sits, in metres above your feet.
 [*][b]Shadows[/b] = false: [i]true[/i] makes the light cast shadows. Costs some frame rate.
@@ -112,6 +112,17 @@ No light at all? Check that [i]dbgcore.dll[/i] sits next to [i]enshrouded.exe[/i
 [line]
 
 [size=4][b]Changelog[/b][/size]
+
+[b]1.1.0[/b]
+[list]
+[*]The menu looks like the game's own dialogs: the framed window Find's search uses, the game's stone Close button, and slider rows laid out like the game's Settings screen.
+[*]Far fewer hidden chat lines: players without Radiance saw an empty chat message every 10 seconds. Now one is sent when you join a world, and nothing more unless another Radiance player is there.
+[*]Safer on game updates: more of what the mod uses is read from the game at start; if a menu piece changes in an update, the menu draws its own instead.
+[/list]
+Reported bugs fixed:
+[list]
+[*]Empty chat messages for players without the mod (Neocybermario).
+[/list]
 
 [b]1.0.0[/b]
 [list]

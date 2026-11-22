@@ -1,7 +1,7 @@
 {
     "id": "radiance",
     "name": "Radiance - Player Light Source",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "dll": "radiance.dll",
     "side": "client",
     "api": 2,

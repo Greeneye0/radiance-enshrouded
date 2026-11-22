@@ -5,12 +5,18 @@
 // window never draws it; Town Portals and Embervale Teleport talk to their server parts the same way).
 //
 //   RAD1 S <entity> <x> <y> <z> <on> <r> <g> <b> <intensity %> <radius> <flicker %>     my light (x y z: where I stand)
-//   RAD1 H                                                                             I just arrived: say yours
+//   RAD1 H <entity>                                                                    I just arrived: say yours
 //
-// A line is sent when the light changes, every 10 s while it is on (so a player coming into view gets it), and in
-// answer to H. The server stamps each line with its sender's handle; that is the key a light is kept under. Which
-// character to put it on: the sender's entity id when this game shows a player row with that id, else the player
-// row nearest the place the sender said it stands (3 m). The row then moves the light every frame.
+// Players without Radiance see every hidden line as an empty chat message (Neocybermario's report on 1.0.0, which
+// sent one every 10 s), so Radiance says as little as it can: one H when it enters a world, and nothing more until
+// another Radiance player is heard (an H or an S that is not its own). From then on: its light when it changes and
+// in answer to an H; and an H again (at most once a minute) while a light heard of is on nobody and a player in view
+// has none. Another player's light is kept until that player has been out of view and silent for 10 minutes.
+// (1.0.0 sent H without an entity; it counts as another player's.)
+//
+// The server stamps each line with its sender's handle; that is the key a light is kept under. Which character to
+// put it on: the sender's entity id when this game shows a player row with that id, else the player row nearest the
+// place the sender said it stands (3 m). The row then moves the light every frame.
 //
 // A world played alone has no chat, so nothing is sent there.
 namespace sync {
@@ -26,10 +32,12 @@ struct Remote {
     ULONGLONG heard = 0;
     uint32_t bound = 0; // the entity (in this game's ECS) the light follows; 0: not found yet
     uint32_t logged = 0;
+    ULONGLONG lastSeen = 0; // when its row was last in view
 };
 SRWLOCK lock = SRWLOCK_INIT;
 Remote remotes[kMaxRemotes];
-std::atomic<bool> helloHeard{false};
+std::atomic<bool> helloHeard{false}; // another player asked: say mine
+std::atomic<bool> peerHeard{false};  // another Radiance player is in this world
 std::atomic<void*> gameClientSeen{nullptr};
 std::atomic<unsigned> linesHeard{0};
 #ifdef RADIANCE_DEV
@@ -46,7 +54,13 @@ int OnLine(void* store, std::string_view line, uint32_t senderHandle, uint64_t, 
     char text[160]{};
     memcpy(text, line.data(), line.size());
     if (text[5] == 'H') {
-        helloHeard = true;
+        unsigned from = 0;
+        sscanf_s(text + 6, "%u", &from);
+        bool mine = from && from == g_localEntity.load(std::memory_order_relaxed);
+#ifdef RADIANCE_DEV
+        if (echoOwn.load()) mine = false;
+#endif
+        if (!mine) helloHeard = true, peerHeard = true;
         return verdict;
     }
     if (text[5] != 'S') return verdict;
@@ -61,6 +75,7 @@ int OnLine(void* store, std::string_view line, uint32_t senderHandle, uint64_t, 
     if (echoOwn.load()) own = false;
 #endif
     if (own) return verdict; // my own line, relayed back
+    peerHeard = true;
     const ULONGLONG now = GetTickCount64();
     AcquireSRWLockExclusive(&lock);
     Remote* slot = nullptr;
@@ -103,7 +118,7 @@ uint32_t Bind(const Remote& remote, const Seen* seen, int count, ULONGLONG now) 
             const double d = double(seen[i].transform.position[k]) / 4294967296.0 - remote.claimed[k];
             d2 += d * d;
         }
-        if (seen[i].entity == remote.claimedEntity && d2 < 30.0 * 30.0) return seen[i].entity;
+        if (seen[i].entity == remote.claimedEntity) return seen[i].entity;
         // by place only while the place is fresh: later someone else may stand there
         if (now - remote.heard < 2000 && d2 < bestD2) bestD2 = d2, best = seen[i].entity;
     }
@@ -112,7 +127,7 @@ uint32_t Bind(const Remote& remote, const Seen* seen, int count, ULONGLONG now) 
 
 Settings lastSent;
 bool sentOnce = false;
-ULONGLONG nextKeepAlive = 0, nextHello = 0, changedAt = 0;
+ULONGLONG nextHello = 0, changedAt = 0, nextAsk = 0;
 void* helloFor = nullptr;
 
 bool SendState(void* gameClient, const Settings& s, const WorldTransform& at) {
@@ -156,10 +171,22 @@ void Tick(void* uiClient) {
     AcquireSRWLockExclusive(&lock);
     for (Remote& remote : remotes) {
         if (!remote.sender) continue;
-        if (now - remote.heard > 45000) remote = {}; // its player left, or stopped saying
+        for (int i = 0; i < kMaxSeen; ++i)
+            if (remote.bound && seen[i].entity == remote.bound && now - seen[i].at < 500) remote.lastSeen = now;
+        if (now - (remote.heard > remote.lastSeen ? remote.heard : remote.lastSeen) > 600000) remote = {}; // its player left
         else if (!remote.bound && (remote.bound = Bind(remote, seen, kMaxSeen, now)) != 0 && remote.bound != remote.logged)
             remote.logged = remote.bound, Log("another player's light (sender %08x): on %d, colour %u,%u,%u, on the character with entity %08x", remote.sender, int(remote.on),
                 remote.r, remote.g, remote.b, remote.bound);
+    }
+    // a light heard of but not on anyone yet, and a player in view who has none: ask again (at most once a minute;
+    // only ever when another Radiance player is here)
+    bool unplaced = false, unclaimed = false;
+    for (const Remote& remote : remotes) unplaced |= remote.sender && !remote.bound;
+    for (int i = 0; i < kMaxSeen && unplaced; ++i) {
+        if (!seen[i].entity || seen[i].local || now - seen[i].at > 500) continue;
+        bool claimed = false;
+        for (const Remote& remote : remotes) claimed |= remote.bound == seen[i].entity;
+        unclaimed |= !claimed;
     }
     ReleaseSRWLockExclusive(&lock);
 
@@ -167,23 +194,37 @@ void Tick(void* uiClient) {
     if (helloFor != gameClient) { // a world just entered: ask the others, say ours
         helloFor = gameClient;
         sentOnce = false;
+        peerHeard = false;
+        helloHeard = false;
+        AcquireSRWLockExclusive(&lock); // lights heard in another world
+        for (Remote& remote : remotes) remote = {};
+        ReleaseSRWLockExclusive(&lock);
         nextHello = now + 3000;
     }
     if (nextHello && now >= nextHello) {
         nextHello = 0;
-        hiddenchat::Send(gameClient, "RAD1 H");
+        char hello[32];
+        sprintf_s(hello, "RAD1 H %u", g_localEntity.load());
+        hiddenchat::Send(gameClient, hello);
+    }
+    if (!peerHeard.load()) return; // nobody here runs Radiance: say nothing more
+    if (unplaced && unclaimed && now >= nextAsk) {
+        nextAsk = now + 60000;
+        char ask[32];
+        sprintf_s(ask, "RAD1 H %u", g_localEntity.load());
+        hiddenchat::Send(gameClient, ask);
     }
     const bool on = s.enabled && s.share && s.intensity > 0;
     const bool differs = !sentOnce || on != (lastSent.enabled && lastSent.share && lastSent.intensity > 0) ||
                          (on && (s.red != lastSent.red || s.green != lastSent.green || s.blue != lastSent.blue ||
                                  s.intensity != lastSent.intensity || s.radius != lastSent.radius || s.flicker != lastSent.flicker));
     if (differs && !changedAt) changedAt = now;
-    // a change once the player has left it alone for a moment, an answer to a newcomer, or the regular line while on
+    // a change once the player has left it alone for a moment (the first one: the light as it is, once a peer is
+    // heard), or an answer to a newcomer
     const bool asked = helloHeard.load();
-    if (!((differs && now - changedAt >= 400) || (asked && !differs) || (on && !differs && now >= nextKeepAlive))) return;
+    if (!((differs && now - changedAt >= 400) || (asked && !differs))) return;
     helloHeard = false;
     changedAt = 0;
-    nextKeepAlive = now + 10000;
     if (SendState(gameClient, s, at)) lastSent = s, sentOnce = true;
 }
 
@@ -201,6 +242,14 @@ bool Init(const GreeneyeHost* host) {
         return false;
     }
     if (!allowed) Log("the chat permission check was not found: lights are shared only on servers with text chat on");
+    if (hiddenchat::g_clientStoreRead) {
+        ++code::stats.found;
+        if (hiddenchat::g_clientStore != hiddenchat::kClientStore) ++code::stats.moved;
+    } else {
+        ++code::stats.missing;
+        Log("layout: the client's chat store was not read from the game's code (site %p, check %p), using 0x%zx", hiddenchat::g_storeSite,
+            hiddenchat::g_storeCheck, hiddenchat::g_clientStore);
+    }
     installed = true;
     return true;
 }

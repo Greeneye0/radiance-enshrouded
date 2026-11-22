@@ -1,1 +1,1 @@
-Your character gives off light, like a Wax Torch you never have to hold. F8 turns it on or off; Shift+F8 opens a menu for brightness, range and colour. Client side only: no items, nothing on the server.
+Your character gives off light, like a Wax Torch you never have to hold. F8 turns it on or off; Shift+F8 opens a menu for brightness, range and color. Client side only: no items, nothing on the server.

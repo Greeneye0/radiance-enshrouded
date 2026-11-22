@@ -23,13 +23,14 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
+#include <initializer_list>
 #include <iterator>
 #include <string>
 #include <vector>
 
 namespace {
 
-constexpr char kVersion[] = "1.0.0";
+constexpr char kVersion[] = "1.1.0";
 
 // ---- the game's types (reflected: keen::RenderLight 28 bytes, keen::WorldTransform 56 bytes) ----
 #pragma pack(push, 4)
@@ -129,6 +130,8 @@ void Log(const char* format, ...) {
     va_end(args);
     if (auto* host = greeneye::Host()) host->log(line);
 }
+
+#include "code.h"
 
 bool ParseSwitch(const wchar_t* text, bool fallback) {
     while (*text == L' ' || *text == L'\t') ++text;
@@ -357,8 +360,27 @@ struct Layout {
 // Fixed by the signatures (the bytes that use them are part of what is matched or checked at start):
 constexpr size_t kManagerSystem = 8, kManagerFree = 0x28, kManagerEntries = 0x50, kManagerEntryCount = 0x58;
 constexpr size_t kEntrySize = 0xC0, kEntryHandle = 8, kRecordSize = 0xC0, kRecordResource = 0x10;
-// keen::VfxResource (reflected): particles +20, parameters +108, defaultParameterData +116 (64 bytes).
-constexpr size_t kResourceParticles = 20, kResourceParameters = 108, kResourceDefaults = 116, kParameterBytes = 64;
+// keen::VfxResource fields, by name from the game's reflection at start (these were their places on 2026-11-04);
+// a parameter description (keen::VfxUserEffectParameterDescription) is {nameHash, typeId, dataRange}.
+size_t kResourceParticles = 0x14, kResourceParameters = 0x6c, kResourceDefaults = 0x74;
+size_t kDescriptionSize = 12, kDescriptionType = 4, kDescriptionRange = 8;
+constexpr size_t kParameterBytes = 64; // keen::VfxUserEffectParameterDataBlock, checked at start
+bool ReadResourceLayout() {
+    const char* R = "keen::VfxResource";
+    const char* D = "keen::VfxUserEffectParameterDescription";
+    kResourceParticles = size_t(code::Field(R, "particles", 0x14));
+    kResourceParameters = size_t(code::Field(R, "parameters", 0x6c));
+    kResourceDefaults = size_t(code::Field(R, "defaultParameterData", 0x74));
+    kDescriptionType = size_t(code::Field(D, "typeId", 4));
+    kDescriptionRange = size_t(code::Field(D, "dataRange", 8));
+    const int64_t size = reflect::Size(D), block = reflect::Size("keen::VfxUserEffectParameterDataBlock");
+    if (size > 0) kDescriptionSize = size_t(size);
+    if (block > 0 && block != int64_t(kParameterBytes)) {
+        Log("layout: an effect's parameter block is %lld bytes in this build (64 expected); the light stays off", block);
+        return false;
+    }
+    return true;
+}
 
 constexpr uint32_t Fnv(const char* text) {
     uint32_t hash = 0x811c9dc5u;
@@ -402,7 +424,8 @@ bool Describe(const uint8_t* resource, Effect& out) {
     for (uint32_t i = 0; i < count; ++i) {
         uint32_t name = 0, type = 0;
         uint8_t range[2]{};
-        if (!Peek(fields, i * 12, name) || !Peek(fields, i * 12 + 4, type) || !Peek(fields, i * 12 + 8, range)) return false;
+        const size_t at = i * kDescriptionSize;
+        if (!Peek(fields, at, name) || !Peek(fields, at + kDescriptionType, type) || !Peek(fields, at + kDescriptionRange, range)) return false;
         if (name == kLifetime || name == kDuration) return false;
         if (range[1] != 4 || range[0] > kParameterBytes - 4) continue;
         if (name == kLightIntensity && type == kFloat) out.intensity = range[0];
@@ -823,11 +846,11 @@ GREENEYE_MOD_START {
     uint8_t* text;
     size_t textSize;
     if (!Section(".text", text, textSize)) return false;
-    std::vector<uint8_t> code(textSize);
-    host->read(text, code.data(), textSize);
-    g_layout.manager = ManagerOffset(code, text, destroy);
-    const auto nextCalls = CallsFrom(code, text, system, next);
-    const auto localCalls = CallsFrom(code, text, system, isLocal);
+    std::vector<uint8_t> image(textSize);
+    host->read(text, image.data(), textSize);
+    g_layout.manager = ManagerOffset(image, text, destroy);
+    const auto nextCalls = CallsFrom(image, text, system, next);
+    const auto localCalls = CallsFrom(image, text, system, isLocal);
     const uint32_t fields[] = {g_layout.manager, g_layout.capacity, g_layout.bitmap, g_layout.keys, g_layout.values, g_layout.records};
     bool sane = Displacement(host, create + 0x118) == g_layout.records && g_transformSlot <= 8;
     for (uint32_t f : fields) sane = sane && f && f < 0x10000;
@@ -842,6 +865,7 @@ GREENEYE_MOD_START {
         return false;
     }
 
+    if (!ReadResourceLayout()) return false;
     g_kept = static_cast<Kept*>(host->keep("radiance.effects.2", sizeof(Kept)));
     if (!g_kept) return false;
     g_fxCreate = reinterpret_cast<FxCreateFn>(create);
@@ -873,7 +897,9 @@ GREENEYE_MOD_START {
         return false;
     }
     // optional: without the menu the ini alone sets the light; other players' lights need its frame hook
-    if (menu::Init(host, code, text)) sync::Init(host);
+    if (menu::Init(host, image, text)) sync::Init(host);
+    Log("layout: %d game fields and checks read from the game itself (%d moved, %d not found)", code::stats.found, code::stats.moved,
+        code::stats.missing);
     Log("%s started (effect manager at renderer +0x%x, effect table at +0x%x, player row slot %u)", kVersion, g_layout.manager,
         g_layout.keys, g_transformSlot);
     return true;
