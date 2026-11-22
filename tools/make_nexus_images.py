@@ -112,7 +112,7 @@ def colours():
         cell = load(name, (680, 420, 1880, 1167)).resize((cell_w, cell_h), Image.LANCZOS)
         tag(cell, 22, cell_h - 78, label, size=32)
         im.paste(cell, ((i % 3) * (cell_w + gap), (i // 3) * (cell_h + gap)))
-    callout(im, 24, 24, "Pick your colour", "nine in the menu, any colour in the ini", size=40)
+    callout(im, 24, 24, "Pick your color", "nine in the menu, any color in the ini", size=40)
     frame(im)
     save(im, "02-colours.jpg")
 
