@@ -9,7 +9,7 @@ How to use it
 1. Load into a world. The light is on, with the color, brightness and reach of a Wax Torch.
 2. F8 turns the light off and on.
 3. Shift+F8 opens the Radiance menu: a switch, Brightness, Range and nine colors. Use it with
-   the mouse; the camera stays still while it is open. Esc or Close when you are done.
+   the mouse. Esc or Close when you are done.
    Controller: hold LB and press D-pad Left; the D-pad moves through the menu, B closes.
 
 Install

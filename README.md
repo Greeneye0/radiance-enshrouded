@@ -4,7 +4,7 @@ Nights in Embervale are dark, and caves are darker. Radiance makes your characte
 
 - The default is the light of a held Wax Torch: the same color, brightness and reach.
 - No item, no crafting, no slot. Client side only: nothing goes on the server and nothing changes in your save.
-- **F8** turns the light on or off. **Shift+F8** opens a small menu drawn with the game's own interface: a switch, Brightness (up to three times a torch), Range (up to 300 m) and nine colors. It is used with the mouse (the camera stays still while it is open); Esc or Close when done. A controller opens it with LB + D-pad Left and moves through it with the D-pad.
+- **F8** turns the light on or off. **Shift+F8** opens a small menu drawn with the game's own interface: a switch, Brightness (up to three times a torch), Range (up to 300 m) and nine colors. It is used with the mouse; Esc or Close when done. A controller opens it with LB + D-pad Left and moves through it with the D-pad.
 - Players who both have Radiance see each other's lights, on any server (`src/sync.h`). Tested by one player only so far.
 - The menu comes in all 15 languages the game supports, following the game's language setting. The texts are in `src/strings.h`.
 
